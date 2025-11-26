@@ -1,0 +1,8 @@
+{
+  "name": "La DDR - Dawa Dans la Rue",
+  "description": "Plateforme interreligieuse ivoirienne pour les actualités, débats, dons et rendez-vous.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
