@@ -4,6 +4,7 @@ import { MOCK_NEWS, MOCK_CONVERSIONS, SPEAKERS, SCHOOL_CAMPAIGN } from '../const
 import { Link } from 'react-router-dom';
 import { searchKnowledgeBaseStream } from '../services/geminiService';
 import PrayerTimes from '../components/PrayerTimes';
+import DonationModal from '../components/DonationModal';
 
 const SUGGESTED_THEMES = [
   "Qui est Allah ?",
@@ -35,6 +36,7 @@ const Home = () => {
   const resultContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLFormElement>(null);
   const [currentDuaIndex, setCurrentDuaIndex] = useState(0);
+  const [showDonationModal, setShowDonationModal] = useState(false);
 
   // Dua Carousel Loop
   useEffect(() => {
@@ -240,7 +242,7 @@ const Home = () => {
         </div>
 
         {/* SECTION DON / ECOLE - PRIORITAIRE */}
-        <div className="border-b border-gray-800 relative overflow-hidden">
+        <div id="donate" className="border-b border-gray-800 relative overflow-hidden">
              <div className="absolute inset-0 bg-brand-900/5 pattern-dots opacity-20"></div>
              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative z-10">
                  <div className="bg-[#0f0f0f]/80 backdrop-blur-md rounded-3xl border border-brand-500/30 overflow-hidden shadow-[0_0_60px_rgba(234,88,12,0.1)] flex flex-col md:flex-row group hover:border-brand-500/50 transition-colors duration-500">
@@ -279,18 +281,89 @@ const Home = () => {
                              </div>
                          </div>
 
-                         <div className="flex gap-4">
-                             <button onClick={() => window.location.hash = '#donate'} className="flex-1 bg-brand-600 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:bg-brand-500 hover:scale-[1.02] transition-all uppercase tracking-wider flex items-center justify-center gap-2">
+                         <div className="flex flex-wrap gap-4">
+                             <button onClick={() => setShowDonationModal(true)} className="flex-1 bg-brand-600 text-white font-bold py-4 px-8 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:bg-brand-500 hover:scale-[1.02] transition-all uppercase tracking-wider flex items-center justify-center gap-2">
                                  <span className="text-xl">🙌</span> Faire un Don
                              </button>
-                             <Link to="/appointments" className="px-6 py-4 border border-gray-700 rounded-xl text-gray-300 font-bold hover:bg-gray-800 hover:text-white transition-colors">
-                                 Don Matériel
+                             <Link to="/donations" className="px-8 py-4 bg-white/5 border border-gray-700 rounded-xl text-gray-300 font-bold hover:bg-white/10 hover:text-white transition-all flex items-center gap-2">
+                                 Voir la campagne
                              </Link>
                          </div>
                      </div>
                  </div>
              </div>
         </div>
+
+        {/* SECTION PRÊCHE DU JEUDI */}
+        <div className="py-24 bg-gradient-to-b from-black to-[#050505] relative overflow-hidden">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+            <div className="max-w-7xl mx-auto px-4 relative z-10">
+                <div className="flex flex-col lg:flex-row items-center gap-16">
+                    <div className="w-full lg:w-1/2 space-y-8">
+                        <div>
+                            <span className="inline-block py-1.5 px-4 rounded-full bg-brand-900/30 border border-brand-500/30 text-brand-500 text-xs font-bold tracking-[0.2em] uppercase mb-6">Rendez-vous Hebdomadaire</span>
+                            <h2 className="text-4xl md:text-6xl font-extrabold text-white font-serif leading-tight">
+                                Le Prêche du <span className="text-brand-500">Jeudi</span>
+                            </h2>
+                        </div>
+                        <p className="text-gray-400 text-lg leading-relaxed">
+                            Chaque jeudi à <span className="text-white font-bold">16h00</span>, rejoignez-nous à la <span className="text-brand-500 font-bold">Place Ficgayo de Yopougon</span>. 
+                            Un moment unique de partage, de questions-réponses et de rapprochement avec la vérité.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="bg-[#0f0f0f] border border-gray-800 p-6 rounded-2xl">
+                                <div className="text-brand-500 text-2xl mb-3">📍</div>
+                                <h4 className="text-white font-bold mb-1">Lieu</h4>
+                                <p className="text-gray-500 text-sm">Place Ficgayo, Yopougon, Abidjan</p>
+                            </div>
+                            <div className="bg-[#0f0f0f] border border-gray-800 p-6 rounded-2xl">
+                                <div className="text-brand-500 text-2xl mb-3">⏰</div>
+                                <h4 className="text-white font-bold mb-1">Heure</h4>
+                                <p className="text-gray-500 text-sm">Tous les jeudis à 16h00 GMT</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 pt-4">
+                            <a href="https://www.youtube.com/@ddrlavraiechaine" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-500 transition-all flex items-center gap-3 shadow-lg shadow-red-600/20">
+                                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                Suivre en Direct
+                            </a>
+                            <Link to="/appointments" className="px-8 py-4 bg-white/5 border border-gray-700 text-white font-bold rounded-xl hover:bg-white/10 transition-all">
+                                Poser une question
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="w-full lg:w-1/2 relative">
+                        <div className="aspect-video rounded-[2.5rem] overflow-hidden border border-gray-800 shadow-2xl relative group">
+                            <img src="https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1000&auto=format&fit=crop" alt="Prêche Ficgayo" className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition duration-700" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-20 h-20 bg-brand-600 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_40px_rgba(234,88,12,0.5)]">
+                                    <svg className="w-10 h-10 text-white fill-current ml-1" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Floating Badge */}
+                        <div className="absolute -bottom-6 -right-6 bg-[#121214] border border-gray-800 p-6 rounded-3xl shadow-2xl animate-bounce-slow">
+                            <div className="flex items-center gap-4">
+                                <div className="flex -space-x-3">
+                                    {[1,2,3].map(i => (
+                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-gray-800 overflow-hidden">
+                                            <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div>
+                                    <p className="text-white font-bold text-sm">+2.5k spectateurs</p>
+                                    <p className="text-brand-500 text-[10px] font-bold uppercase tracking-widest">En direct chaque jeudi</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {showDonationModal && <DonationModal onClose={() => setShowDonationModal(false)} />}
 
         {/* Figures de la DDR Section */}
         <div className="bg-gradient-to-b from-transparent to-black/80 py-24 relative">

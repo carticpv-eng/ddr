@@ -1,13 +1,48 @@
-import React, { useState, useRef } from 'react';
-import { LiveClient } from '../services/geminiService';
+import React, { useState, useRef, useEffect } from 'react';
+import { LiveClient, createChatSession } from '../services/geminiService';
+import { MessageSquare, Mic, Send, X, Minimize2, Maximize2, Trash2, Headphones, Keyboard } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const LiveAssistant = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [mode, setMode] = useState<'text' | 'voice'>('text');
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [inputText, setInputText] = useState('');
+  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
+    { role: 'model', text: 'Salam alaykoum ! Je suis votre compagnon DDR. Comment puis-je vous aider dans votre cheminement aujourd\'hui ?' }
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const clientRef = useRef<LiveClient | null>(null);
+  const chatRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const toggleSession = async () => {
+  useEffect(() => {
+    return () => {
+      if (clientRef.current) {
+        clientRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen && active) {
+      clientRef.current?.disconnect();
+      setActive(false);
+    }
+  }, [isOpen, active]);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, transcript]);
+
+  const toggleVoiceSession = async () => {
     if (active) {
         clientRef.current?.disconnect();
         setActive(false);
@@ -15,18 +50,27 @@ const LiveAssistant = () => {
     } else {
         setConnecting(true);
         setError(null);
+        setMode('voice');
         try {
-            const client = new LiveClient((text) => {
-                setTranscript(text);
-            });
+            const client = new LiveClient(
+                (text) => {
+                    // AI Message
+                    setMessages(prev => [...prev, { role: 'model', text }]);
+                },
+                (text) => {
+                    // User Transcript
+                    setTranscript(text);
+                    setMessages(prev => [...prev, { role: 'user', text }]);
+                }
+            );
             await client.connect();
             clientRef.current = client;
             setActive(true);
         } catch (e: any) {
             console.error(e);
             setError(e.message === 'GEMINI_API_KEY_MISSING' 
-                ? "Clé API manquante. Veuillez configurer l'application." 
-                : "Impossible de connecter l'assistant vocal. Vérifiez les permissions micro.");
+                ? "Clé API manquante." 
+                : "Erreur micro. Vérifiez les permissions.");
             setTimeout(() => setError(null), 5000);
         } finally {
             setConnecting(false);
@@ -34,50 +78,207 @@ const LiveAssistant = () => {
     }
   };
 
-  const [error, setError] = useState<string | null>(null);
+  const clearChat = () => {
+    setMessages([{ role: 'model', text: 'Salam alaykoum ! Je suis votre compagnon DDR. Comment puis-je vous aider dans votre cheminement aujourd\'hui ?' }]);
+    chatRef.current = null;
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim() || loading) return;
+
+    const userText = inputText.trim();
+    setInputText('');
+    setMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setLoading(true);
+
+    try {
+        if (!chatRef.current) {
+            chatRef.current = createChatSession();
+        }
+        const result = await chatRef.current.sendMessage({ message: userText });
+        setMessages(prev => [...prev, { role: 'model', text: result.text }]);
+    } catch (err: any) {
+        console.error(err);
+        setError("Désolé, j'ai rencontré une difficulté technique.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 left-6 z-50 w-16 h-16 bg-brand-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:scale-110 transition-all group border-2 border-white/20"
+      >
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
+        <MessageSquare className="w-8 h-8 group-hover:rotate-12 transition-transform" />
+      </button>
+    );
+  }
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-2">
-        {error && (
-            <div className="bg-red-900/90 text-white text-xs p-3 rounded-lg border border-red-500 animate-fade-in">
-                {error}
+    <div className={`fixed bottom-24 left-6 z-50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14 w-64' : 'h-[500px] w-[350px] md:w-[400px]'}`}>
+        {/* Header */}
+        <div className="bg-dark-900 border border-brand-500/30 rounded-t-2xl p-4 flex items-center justify-between shadow-2xl">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs">DDR</div>
+                {!isMinimized && (
+                    <div>
+                        <h3 className="text-white font-bold text-sm leading-none">Compagnon DDR</h3>
+                        <span className="text-[10px] text-brand-500 font-bold uppercase tracking-widest">En ligne</span>
+                    </div>
+                )}
+                {isMinimized && <span className="text-white font-bold text-xs">Compagnon DDR</span>}
             </div>
-        )}
-        {active && (
-            <div className="mb-4 bg-dark-900 border border-brand-500/50 p-4 rounded-xl shadow-2xl max-w-xs animate-fade-in-up">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-brand-500 text-sm">Compagnon DDR (En écoute...)</span>
-                    <span className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+            <div className="flex items-center gap-2">
+                {!isMinimized && (
+                    <button onClick={clearChat} className="text-gray-400 hover:text-red-500 p-1.5 transition-colors bg-white/5 rounded-lg" title="Effacer la conversation">
+                        <Trash2 size={16} />
+                    </button>
+                )}
+                <button onClick={() => setIsMinimized(!isMinimized)} className="text-gray-400 hover:text-white p-1.5 bg-white/5 rounded-lg">
+                    {isMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                </button>
+                <button onClick={() => setIsOpen(false)} className="text-white hover:bg-red-600 p-1.5 bg-red-500/20 rounded-lg transition-all flex items-center gap-1" title="Fermer l'assistant">
+                    <X size={20} />
+                    {!isMinimized && <span className="text-[10px] font-bold uppercase pr-1">Fermer</span>}
+                </button>
+            </div>
+        </div>
+
+        {!isMinimized && (
+            <div className="flex-grow bg-[#0c0c0e] border-x border-brand-500/10 flex flex-col overflow-hidden relative">
+                {/* Mode Selector */}
+                <div className="flex border-b border-white/5 bg-black/40">
+                    <button 
+                        onClick={() => setMode('text')}
+                        className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'text' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Keyboard size={14} />
+                        Clavier
+                    </button>
+                    <button 
+                        onClick={() => setMode('voice')}
+                        className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'voice' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Headphones size={14} />
+                        Vocal
+                    </button>
                 </div>
-                <div className="h-12 bg-black rounded p-2 overflow-hidden text-xs text-gray-400 italic border border-gray-800">
-                    {transcript || "Parlez maintenant, mon frère..."}
+
+                {/* Messages Area */}
+                <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-brand-500/20">
+                    {mode === 'text' ? (
+                        <>
+                            {messages.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
+                                        msg.role === 'user' 
+                                        ? 'bg-brand-600 text-white rounded-tr-none shadow-lg shadow-brand-900/20' 
+                                        : 'bg-dark-800 text-gray-200 border border-white/5 rounded-tl-none'
+                                    }`}>
+                                        <div className="prose prose-invert prose-sm max-w-none">
+                                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {loading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-dark-800 p-3 rounded-2xl rounded-tl-none border border-white/5 flex gap-1">
+                                        <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce"></span>
+                                        <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                                        <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 transition-all duration-500 ${active ? 'bg-red-500/20 border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-brand-500/10 border-2 border-brand-500/30'}`}>
+                                <Mic className={`w-10 h-10 ${active ? 'text-red-500 animate-pulse' : 'text-brand-500'}`} />
+                            </div>
+                            <h4 className="text-white font-bold mb-2">{active ? 'Je vous écoute...' : 'Assistant Vocal'}</h4>
+                            <p className="text-gray-400 text-xs mb-8 leading-relaxed italic">
+                                {transcript || "Cliquez sur le bouton ci-dessous pour démarrer une conversation vocale avec votre compagnon."}
+                            </p>
+                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                                <button
+                                    onClick={toggleVoiceSession}
+                                    disabled={connecting}
+                                    className={`w-full py-3 rounded-full font-bold text-sm transition-all shadow-lg ${
+                                        active 
+                                        ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-900/20' 
+                                        : 'bg-brand-600 text-white hover:bg-brand-500 shadow-brand-900/20'
+                                    }`}
+                                >
+                                    {connecting ? 'Connexion...' : active ? 'Arrêter' : 'Démarrer'}
+                                </button>
+                                
+                                <button
+                                    onClick={() => {
+                                        if (active) clientRef.current?.disconnect();
+                                        setIsOpen(false);
+                                    }}
+                                    className="w-full py-2 text-gray-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
+                                >
+                                    Quitter l'assistant
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
                 </div>
+
+                {/* Input Area (Text Mode) */}
+                {mode === 'text' && (
+                    <form onSubmit={handleSendMessage} className="p-4 bg-black/40 border-t border-white/5 flex gap-2 items-center">
+                        <button 
+                            type="button"
+                            onClick={() => setMode('voice')}
+                            className="w-10 h-10 bg-dark-800 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-brand-500 hover:border-brand-500 transition-all"
+                            title="Passer en mode vocal"
+                        >
+                            <Mic size={18} />
+                        </button>
+                        <input 
+                            type="text"
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            placeholder="Votre question..."
+                            className="flex-grow bg-dark-800 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-brand-500 transition-all"
+                        />
+                        <button 
+                            type="submit"
+                            disabled={!inputText.trim() || loading}
+                            className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white hover:bg-brand-500 transition-all disabled:opacity-50 disabled:hover:scale-100 active:scale-90 shadow-lg shadow-brand-900/20"
+                        >
+                            <Send size={18} />
+                        </button>
+                    </form>
+                )}
+
+                {error && (
+                    <div className="absolute bottom-20 left-4 right-4 bg-red-900/90 text-white text-[10px] p-2 rounded border border-red-500 animate-fade-in text-center">
+                        {error}
+                    </div>
+                )}
             </div>
         )}
 
-        <button
-            onClick={toggleSession}
-            disabled={connecting}
-            className={`flex items-center gap-2 px-6 py-4 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all transform hover:scale-105 border border-white/10 ${
-                active 
-                ? 'bg-red-900 text-white hover:bg-red-800 border-red-700' 
-                : 'bg-brand-600 text-white hover:bg-brand-500 border-brand-500'
-            }`}
-        >
-            {connecting ? (
-                 <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                 </svg>
-            ) : (
-                <>
-                     <span className="font-bold tracking-wide">{active ? 'Raccrocher' : 'Compagnon DDR'}</span>
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                     </svg>
-                </>
-            )}
-        </button>
+        {/* Footer (Minimized) */}
+        {isMinimized && (
+            <div className="bg-dark-900 border-x border-b border-brand-500/30 rounded-b-2xl h-1 flex items-center justify-center">
+                <div className="w-12 h-1 bg-gray-700 rounded-full"></div>
+            </div>
+        )}
+        {!isMinimized && (
+            <div className="bg-dark-900 border-x border-b border-brand-500/30 rounded-b-2xl p-2 text-center">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">La Daawah Dans la Rue • IA Compagnon</p>
+            </div>
+        )}
     </div>
   );
 };

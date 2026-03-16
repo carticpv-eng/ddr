@@ -97,9 +97,28 @@ const Tools = () => {
 
   // --- STATE ZAKAT ---
   const [assets, setAssets] = useState({ cash: 0, gold: 0, stocks: 0, debts: 0 });
+  const [zakatHistory, setZakatHistory] = useState<any[]>(() => {
+      try {
+          return JSON.parse(localStorage.getItem('ddr_zakat_history') || '[]');
+      } catch { return []; }
+  });
+  
   const totalAssets = assets.cash + (assets.gold * GOLD_PRICE) + assets.stocks - assets.debts;
   const zakatAmount = totalAssets >= NISAB_VALUE ? totalAssets * 0.025 : 0;
   const progress = Math.min((totalAssets / NISAB_VALUE) * 100, 100);
+
+  const saveZakatCalculation = () => {
+      const newCalc = {
+          id: Date.now(),
+          date: new Date().toISOString(),
+          total: totalAssets,
+          zakat: zakatAmount,
+          assets: { ...assets }
+      };
+      const newHistory = [newCalc, ...zakatHistory].slice(0, 5);
+      setZakatHistory(newHistory);
+      localStorage.setItem('ddr_zakat_history', JSON.stringify(newHistory));
+  };
 
   // --- STATE DAWA ---
   const [selectedCat, setSelectedCat] = useState('Toutes');
@@ -125,7 +144,13 @@ const Tools = () => {
 
       try {
           // Génération PNG Haute Qualité
-          const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 3 });
+          const dataUrl = await toPng(cardRef.current, { 
+              cacheBust: false, 
+              pixelRatio: 2,
+              style: {
+                  borderRadius: '0' // Force sharp corners for download
+              }
+          });
           
           const link = document.createElement('a');
           link.download = `ddr-rappel-${currentQuote.cat.toLowerCase()}.png`;
@@ -147,7 +172,10 @@ const Tools = () => {
       setGenerating(true);
 
       try {
-          const blob = await toBlob(cardRef.current, { cacheBust: true, pixelRatio: 3 });
+          const blob = await toBlob(cardRef.current, { 
+              cacheBust: false, 
+              pixelRatio: 2 
+          });
           if (blob) {
               const file = new File([blob], "ddr-rappel.png", { type: "image/png" });
               
@@ -294,10 +322,50 @@ const Tools = () => {
                         </div>
 
                         {zakatAmount > 0 && (
-                            <button onClick={handlePayZakat} className="w-full mt-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition shadow-lg flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
+                            <button 
+                                onClick={() => {
+                                    saveZakatCalculation();
+                                    handlePayZakat();
+                                }} 
+                                className="w-full mt-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition shadow-lg flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
+                            >
                                 Payer ma Zakat
                             </button>
                         )}
+                        
+                        {/* History Mini List */}
+                        {zakatHistory.length > 0 && (
+                            <div className="mt-8 pt-8 border-t border-gray-800">
+                                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Historique Récent</h4>
+                                <div className="space-y-3">
+                                    {zakatHistory.map(h => (
+                                        <div key={h.id} className="flex justify-between items-center text-xs">
+                                            <span className="text-gray-500">{new Date(h.date).toLocaleDateString()}</span>
+                                            <span className="text-brand-500 font-bold">{Math.round(h.zakat).toLocaleString()} F</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ZAKAT TIPS */}
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800">
+                        <div className="text-2xl mb-3">💎</div>
+                        <h4 className="text-white font-bold mb-2">Qu'est-ce que le Nisab ?</h4>
+                        <p className="text-gray-500 text-xs leading-relaxed">C'est le seuil minimal de richesse au-delà duquel la Zakat devient obligatoire. Il correspond à 85g d'or pur.</p>
+                    </div>
+                    <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800">
+                        <div className="text-2xl mb-3">📅</div>
+                        <h4 className="text-white font-bold mb-2">Le Hawl (Un an)</h4>
+                        <p className="text-gray-500 text-xs leading-relaxed">La Zakat n'est due que si vos avoirs sont restés au-dessus du Nisab pendant une année lunaire complète.</p>
+                    </div>
+                    <div className="bg-[#121214] p-6 rounded-2xl border border-gray-800">
+                        <div className="text-2xl mb-3">🤝</div>
+                        <h4 className="text-white font-bold mb-2">Les Bénéficiaires</h4>
+                        <p className="text-gray-500 text-xs leading-relaxed">Elle est destinée aux pauvres, aux indigents, et à ceux dont les cœurs sont à gagner, entre autres catégories.</p>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { logAction } from '../services/logService';
+import { motion } from 'framer-motion';
+import { Trophy, Star, Flame, BookOpen, Calendar, CheckCircle2, Award, MapPin, Clock, MessageCircle, Users } from 'lucide-react';
 
 interface Verse {
     number: number;
@@ -26,12 +28,18 @@ const THEMES = [
 ];
 
 const Khatma = () => {
+  const [view, setView] = useState<'reader' | 'preche'>('reader');
   const [completedJuzs, setCompletedJuzs] = useState<number[]>([]);
   const [readingJuz, setReadingJuz] = useState<number | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   
+  // Gamification State
+  const [noorPoints, setNoorPoints] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [lastReadDate, setLastReadDate] = useState<string | null>(null);
+
   // Hijri Date
   const [hijriDate, setHijriDate] = useState('');
 
@@ -50,9 +58,28 @@ const Khatma = () => {
 
   // Charger la progression et la date
   useEffect(() => {
-      const stored = localStorage.getItem('ddr_my_quran_progress');
-      if (stored) {
-          setCompletedJuzs(JSON.parse(stored));
+      const storedProgress = localStorage.getItem('ddr_my_quran_progress');
+      if (storedProgress) setCompletedJuzs(JSON.parse(storedProgress));
+
+      const storedPoints = localStorage.getItem('ddr_noor_points');
+      if (storedPoints) setNoorPoints(parseInt(storedPoints));
+
+      const storedStreak = localStorage.getItem('ddr_quran_streak');
+      const storedLastDate = localStorage.getItem('ddr_last_read_date');
+      
+      if (storedStreak && storedLastDate) {
+          const lastDate = new Date(storedLastDate);
+          const today = new Date();
+          const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 3600 * 24));
+          
+          if (diffDays === 1) {
+              setStreak(parseInt(storedStreak));
+          } else if (diffDays > 1) {
+              setStreak(0);
+          } else {
+              setStreak(parseInt(storedStreak));
+          }
+          setLastReadDate(storedLastDate);
       }
 
       // Fetch Hijri Date
@@ -67,6 +94,22 @@ const Khatma = () => {
         .catch(console.error);
   }, []);
 
+  const addNoorPoints = (points: number) => {
+      const newPoints = noorPoints + points;
+      setNoorPoints(newPoints);
+      localStorage.setItem('ddr_noor_points', newPoints.toString());
+      
+      // Update streak if it's a new day
+      const today = new Date().toDateString();
+      if (lastReadDate !== today) {
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          setLastReadDate(today);
+          localStorage.setItem('ddr_quran_streak', newStreak.toString());
+          localStorage.setItem('ddr_last_read_date', today);
+      }
+  };
+
   const toggleJuzCompletion = (juzNum: number) => {
       let updated;
       if (completedJuzs.includes(juzNum)) {
@@ -74,6 +117,7 @@ const Khatma = () => {
       } else {
           updated = [...completedJuzs, juzNum];
           logAction('QURAN_PROGRESS', `Juz ${juzNum} marqué comme lu`, 'success');
+          addNoorPoints(100); // Reward for completing a Juz
       }
       setCompletedJuzs(updated);
       localStorage.setItem('ddr_my_quran_progress', JSON.stringify(updated));
@@ -188,6 +232,15 @@ const Khatma = () => {
 
   const progressPercentage = Math.round((completedJuzs.length / 30) * 100);
 
+  const getLevel = () => {
+      if (noorPoints < 500) return { name: 'Apprenti', color: 'text-blue-400', icon: '🌱' };
+      if (noorPoints < 1500) return { name: 'Méditant', color: 'text-green-400', icon: '📖' };
+      if (noorPoints < 3000) return { name: 'Gardien', color: 'text-gold-500', icon: '🛡️' };
+      return { name: 'Maître du Coran', color: 'text-brand-500', icon: '👑' };
+  };
+
+  const level = getLevel();
+
   return (
     <div className="min-h-screen bg-black text-white pb-20 relative font-sans selection:bg-gold-500 selection:text-black">
       
@@ -206,93 +259,232 @@ const Khatma = () => {
 
         {!readingJuz && (
             <>
-                {/* --- HEADER NOOR (LUMIÈRE) --- */}
-                <div className="relative pt-24 pb-16 px-4 text-center overflow-hidden border-b border-gray-900">
-                    <div className="max-w-4xl mx-auto relative z-10">
-                        <span className="inline-block py-1 px-3 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-500 text-xs font-bold uppercase tracking-widest mb-6 animate-fade-in-up">
-                            {hijriDate || 'Calendrier Hijri'}
-                        </span>
-                        
-                        <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-6 font-serif tracking-tight animate-fade-in-up delay-100 drop-shadow-2xl">
-                            Le Saint Coran
-                        </h1>
-                        
-                        <p className="text-gray-400 text-lg max-w-2xl mx-auto font-light leading-relaxed animate-fade-in-up delay-200">
-                            "Une guidée et une miséricorde pour les croyants."
-                            <br/>
-                            <span className="text-sm text-brand-500 font-bold mt-2 block">Lisez à votre rythme, méditez chaque mot.</span>
-                        </p>
-                    </div>
+                {/* --- NAVIGATION TABS --- */}
+                <div className="max-w-4xl mx-auto px-4 pt-24 flex justify-center gap-4">
+                    <button 
+                        onClick={() => setView('reader')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${view === 'reader' ? 'bg-gold-500 text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'}`}
+                    >
+                        <BookOpen size={20} />
+                        Lecture
+                    </button>
+                    <button 
+                        onClick={() => setView('preche')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${view === 'preche' ? 'bg-brand-500 text-white shadow-[0_0_20px_rgba(234,88,12,0.3)]' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'}`}
+                    >
+                        <Calendar size={20} />
+                        Prêche Place Figayo
+                    </button>
                 </div>
 
-                {/* PROGRESS DASHBOARD */}
-                <div className="max-w-5xl mx-auto px-4 -mt-8 mb-12 relative z-20">
-                    <div className="bg-[#0f0f11] border border-gray-800 rounded-3xl p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
-                        <div className="flex items-center gap-6 w-full md:w-auto">
-                            <div className="relative w-20 h-20 flex items-center justify-center">
-                                <svg className="w-full h-full transform -rotate-90">
-                                    <circle cx="40" cy="40" r="36" stroke="#333" strokeWidth="6" fill="transparent" />
-                                    <circle cx="40" cy="40" r="36" stroke="#d4af37" strokeWidth="6" fill="transparent" strokeDasharray="226" strokeDashoffset={226 - (226 * progressPercentage) / 100} className="transition-all duration-1000 ease-out" />
-                                </svg>
-                                <span className="absolute text-white font-bold text-lg">{progressPercentage}%</span>
-                            </div>
-                            <div>
-                                <h3 className="text-white font-bold text-lg">Votre Progression</h3>
-                                <p className="text-gray-500 text-sm">Vous avez lu {completedJuzs.length} Juz sur 30.</p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex gap-4 w-full md:w-auto">
-                            <div className="flex-1 bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
-                                <span className="block text-2xl font-bold text-white">{30 - completedJuzs.length}</span>
-                                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Restants</span>
-                            </div>
-                            <div className="flex-1 bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
-                                <span className="block text-2xl font-bold text-brand-500">{completedJuzs.length > 0 ? 'Oui' : 'Non'}</span>
-                                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Actif</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* GRID DES 30 JUZ */}
-                <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in-up delay-200">
-                    <h2 className="text-2xl font-bold text-white mb-8 border-l-4 border-gold-500 pl-4">Sélectionnez un Juz</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                        {Array.from({ length: 30 }, (_, i) => i + 1).map((juzNum) => {
-                            const isCompleted = completedJuzs.includes(juzNum);
-                            return (
-                                <button 
-                                    key={juzNum}
-                                    onClick={() => openReader(juzNum)}
-                                    className={`group relative p-6 rounded-2xl border transition-all duration-300 h-40 flex flex-col items-center justify-center hover:-translate-y-1 overflow-hidden ${
-                                        isCompleted 
-                                            ? 'bg-green-900/10 border-green-500/30' 
-                                            : 'bg-[#121214] border-gray-800 hover:border-gold-500/50 hover:bg-gray-900'
-                                    }`}
-                                >
-                                    {/* Icone Arrière Plan */}
-                                    <div className="absolute -right-4 -bottom-4 text-6xl text-gray-800 opacity-20 font-serif font-bold group-hover:text-gold-500 group-hover:opacity-10 transition-colors">
-                                        {juzNum}
-                                    </div>
-                                    
-                                    <span className={`text-3xl font-serif mb-2 transition-colors z-10 ${isCompleted ? 'text-green-500' : 'text-white group-hover:text-gold-400'}`}>
-                                        Juz {juzNum}
+                {view === 'reader' ? (
+                    <>
+                        {/* --- HEADER NOOR (LUMIÈRE) --- */}
+                        <div className="relative pt-12 pb-16 px-4 text-center overflow-hidden border-b border-gray-900">
+                            <div className="max-w-4xl mx-auto relative z-10">
+                                <div className="flex justify-center gap-4 mb-6">
+                                    <span className="inline-block py-1 px-3 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-500 text-xs font-bold uppercase tracking-widest animate-fade-in-up">
+                                        {hijriDate || 'Calendrier Hijri'}
                                     </span>
-                                    
-                                    {isCompleted ? (
-                                        <span className="flex items-center gap-1 text-[10px] text-green-500 font-bold uppercase tracking-wider bg-green-900/20 px-2 py-1 rounded">
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                            Terminé
-                                        </span>
-                                    ) : (
-                                        <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider group-hover:text-gray-400">Lire</span>
-                                    )}
-                                </button>
-                            )
-                        })}
+                                    <span className={`inline-block py-1 px-3 rounded-full border border-brand-500/30 bg-brand-500/10 ${level.color} text-xs font-bold uppercase tracking-widest animate-fade-in-up delay-100`}>
+                                        {level.icon} {level.name}
+                                    </span>
+                                </div>
+                                
+                                <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-6 font-serif tracking-tight animate-fade-in-up delay-100 drop-shadow-2xl">
+                                    Le Saint Coran
+                                </h1>
+                                
+                                <p className="text-gray-400 text-lg max-w-2xl mx-auto font-light leading-relaxed animate-fade-in-up delay-200">
+                                    "Une guidée et une miséricorde pour les croyants."
+                                    <br/>
+                                    <span className="text-sm text-brand-500 font-bold mt-2 block">Lisez à votre rythme, méditez chaque mot.</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* PROGRESS DASHBOARD */}
+                        <div className="max-w-5xl mx-auto px-4 -mt-8 mb-12 relative z-20">
+                            <div className="bg-[#0f0f11] border border-gray-800 rounded-3xl p-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
+                                <div className="flex items-center gap-6 w-full md:w-auto">
+                                    <div className="relative w-20 h-20 flex items-center justify-center">
+                                        <svg className="w-full h-full transform -rotate-90">
+                                            <circle cx="40" cy="40" r="36" stroke="#333" strokeWidth="6" fill="transparent" />
+                                            <circle cx="40" cy="40" r="36" stroke="#d4af37" strokeWidth="6" fill="transparent" strokeDasharray="226" strokeDashoffset={226 - (226 * progressPercentage) / 100} className="transition-all duration-1000 ease-out" />
+                                        </svg>
+                                        <span className="absolute text-white font-bold text-lg">{progressPercentage}%</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-white font-bold text-lg">Votre Progression</h3>
+                                        <p className="text-gray-500 text-sm">Vous avez lu {completedJuzs.length} Juz sur 30.</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex gap-6 w-full md:w-auto">
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-center gap-2 text-brand-500 mb-1">
+                                            <Star size={16} fill="currentColor" />
+                                            <span className="text-2xl font-black">{noorPoints}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Points de Noor</span>
+                                    </div>
+                                    <div className="w-px h-12 bg-gray-800 hidden md:block"></div>
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-center gap-2 text-orange-500 mb-1">
+                                            <Flame size={16} fill="currentColor" />
+                                            <span className="text-2xl font-black">{streak}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Jours de suite</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* GRID DES 30 JUZ */}
+                        <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in-up delay-200">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-l-4 border-gold-500 pl-4">Sélectionnez un Juz</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                                {Array.from({ length: 30 }, (_, i) => i + 1).map((juzNum) => {
+                                    const isCompleted = completedJuzs.includes(juzNum);
+                                    return (
+                                        <button 
+                                            key={juzNum}
+                                            onClick={() => openReader(juzNum)}
+                                            className={`group relative p-6 rounded-2xl border transition-all duration-300 h-40 flex flex-col items-center justify-center hover:-translate-y-1 overflow-hidden ${
+                                                isCompleted 
+                                                    ? 'bg-green-900/10 border-green-500/30' 
+                                                    : 'bg-[#121214] border-gray-800 hover:border-gold-500/50 hover:bg-gray-900'
+                                            }`}
+                                        >
+                                            {/* Icone Arrière Plan */}
+                                            <div className="absolute -right-4 -bottom-4 text-6xl text-gray-800 opacity-20 font-serif font-bold group-hover:text-gold-500 group-hover:opacity-10 transition-colors">
+                                                {juzNum}
+                                            </div>
+                                            
+                                            <span className={`text-3xl font-serif mb-2 transition-colors z-10 ${isCompleted ? 'text-green-500' : 'text-white group-hover:text-gold-400'}`}>
+                                                Juz {juzNum}
+                                            </span>
+                                            
+                                            {isCompleted ? (
+                                                <span className="flex items-center gap-1 text-[10px] text-green-500 font-bold uppercase tracking-wider bg-green-900/20 px-2 py-1 rounded">
+                                                    <CheckCircle2 size={12} />
+                                                    Terminé
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider group-hover:text-gray-400">Lire</span>
+                                            )}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    /* --- PRECHE VIEW: PLACE FIGAYO --- */
+                    <div className="max-w-4xl mx-auto px-4 py-12">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-center mb-12"
+                        >
+                            <h2 className="text-4xl font-black text-white mb-4 uppercase tracking-tighter">Le Grand <span className="text-brand-500">Prêche Hebdomadaire</span></h2>
+                            <p className="text-gray-400">Un moment de partage, de questions et de rapprochement pour toute la communauté.</p>
+                        </motion.div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                            <motion.div 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-[#0f0f11] border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group hover:border-brand-500/50 transition-all"
+                            >
+                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                                    <MapPin size={80} className="text-brand-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                                    <MapPin className="text-brand-500" />
+                                    Lieu
+                                </h3>
+                                <p className="text-gray-300 text-lg font-serif">Place Figayo, Yopougon</p>
+                                <p className="text-gray-500 text-sm mt-2">Un espace ouvert pour accueillir tout le monde dans la fraternité.</p>
+                            </motion.div>
+
+                            <motion.div 
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="bg-[#0f0f11] border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group hover:border-gold-500/50 transition-all"
+                            >
+                                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                                    <Clock size={80} className="text-gold-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                                    <Clock className="text-gold-500" />
+                                    Horaire
+                                </h3>
+                                <p className="text-gray-300 text-lg font-serif">Chaque Jeudi à 16h00</p>
+                                <p className="text-gray-500 text-sm mt-2">Marquez vos calendriers pour ce rendez-vous spirituel incontournable.</p>
+                            </motion.div>
+                        </div>
+
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="bg-brand-900/10 border border-brand-500/30 rounded-[2.5rem] p-10 text-center mb-12"
+                        >
+                            <MessageCircle className="w-12 h-12 text-brand-500 mx-auto mb-6" />
+                            <h3 className="text-2xl font-bold text-white mb-4">Posez vos Questions</h3>
+                            <p className="text-gray-300 mb-8 leading-relaxed">
+                                Le prêche est interactif. C'est l'occasion idéale pour poser vos questions sur la foi, la pratique et la vie quotidienne. Nos imams et savants sont là pour vous éclairer.
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-4">
+                                <span className="px-4 py-2 bg-black/40 rounded-full text-brand-400 text-xs font-bold uppercase tracking-widest border border-brand-500/20">Questions & Réponses</span>
+                                <span className="px-4 py-2 bg-black/40 rounded-full text-brand-400 text-xs font-bold uppercase tracking-widest border border-brand-500/20">Méditation Collective</span>
+                                <span className="px-4 py-2 bg-black/40 rounded-full text-brand-400 text-xs font-bold uppercase tracking-widest border border-brand-500/20">Fraternité</span>
+                            </div>
+                        </motion.div>
+
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="bg-gradient-to-br from-gray-900 to-black border border-white/10 rounded-[2.5rem] p-12 text-center relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-5"></div>
+                            <Users className="w-16 h-16 text-gold-500 mx-auto mb-6 relative z-10" />
+                            <h3 className="text-3xl font-black text-white mb-4 relative z-10">Rejoignez le Live !</h3>
+                            <p className="text-gray-400 mb-8 max-w-xl mx-auto relative z-10">
+                                Vous ne pouvez pas vous déplacer ? Suivez nos sessions en direct et participez à la discussion où que vous soyez. Votre présence renforce notre communauté.
+                            </p>
+                            <button 
+                                onClick={() => window.location.hash = '#/chat'}
+                                className="relative z-10 px-12 py-4 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(234,88,12,0.4)] transform hover:scale-105"
+                            >
+                                Accéder au Live Chat
+                            </button>
+                        </motion.div>
+
+                        {/* STATS SECTION (REUSED) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                            <div className="bg-gray-900/50 border border-white/5 p-6 rounded-3xl text-center">
+                                <Award className="w-8 h-8 text-gold-500 mx-auto mb-3" />
+                                <h4 className="text-white font-bold mb-1">Niveau {level.name}</h4>
+                                <p className="text-gray-500 text-sm">Prochain rang à {noorPoints < 500 ? '500' : noorPoints < 1500 ? '1500' : '3000'} pts</p>
+                            </div>
+                            <div className="bg-gray-900/50 border border-white/5 p-6 rounded-3xl text-center">
+                                <Star className="w-8 h-8 text-brand-500 mx-auto mb-3" />
+                                <h4 className="text-white font-bold mb-1">{noorPoints} Points</h4>
+                                <p className="text-gray-500 text-sm">Accumulés ce mois</p>
+                            </div>
+                            <div className="bg-gray-900/50 border border-white/5 p-6 rounded-3xl text-center">
+                                <Flame className="w-8 h-8 text-orange-500 mx-auto mb-3" />
+                                <h4 className="text-white font-bold mb-1">{streak} Jours</h4>
+                                <p className="text-gray-500 text-sm">Série de lecture</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </>
         )}
 
@@ -455,7 +647,8 @@ const Khatma = () => {
                                         onClick={handleFinishReading}
                                         className="px-10 py-5 bg-gradient-to-r from-gold-600 to-yellow-600 hover:from-gold-500 hover:to-yellow-500 text-black font-bold text-lg rounded-full shadow-[0_0_40px_rgba(212,175,55,0.4)] transition transform hover:scale-105 uppercase tracking-widest flex items-center gap-3 mx-auto"
                                     >
-                                        <span>🤲</span> Terminer la lecture
+                                        <Trophy size={24} />
+                                        <span>Terminer la lecture</span>
                                     </button>
                                 </div>
                             </div>

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import DonationModal from './DonationModal';
 import RadioPlayer from './RadioPlayer';
+import Logo from './Logo';
+import ScrollToTop from './ScrollToTop';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -32,6 +34,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { name: 'Discussion IA', path: '/chat' },
     { name: 'Savoir', path: '/learning' },
     { name: 'Le Coran', path: '/khatma' }, // RENOMMAGE ICI
+    { name: 'Donations', path: '/donations' },
     { name: 'Outils', path: '/tools' },
     { name: 'Actualités', path: '/news' },
     { name: 'Débats', path: '/debates' },
@@ -40,36 +43,24 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-black text-gray-100 font-sans relative pb-0">
+      <ScrollToTop />
       {/* Header */}
       <nav className="bg-black/90 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center gap-3 group">
-                {/* Logo Image */}
-                <img 
-                    src="/logo.png" 
-                    alt="Logo La DDR" 
-                    className="h-14 w-auto object-contain filter drop-shadow-[0_0_8px_rgba(234,88,12,0.5)] transition-all group-hover:drop-shadow-[0_0_12px_rgba(234,88,12,0.8)]"
-                    onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = "https://placehold.co/150x150/ea580c/000000?text=DDR";
-                    }}
-                />
-                <div className="flex flex-col justify-center">
-                    <span className="font-bold text-2xl tracking-tight text-white leading-none">La DDR</span>
-                    <span className="text-xs text-brand-500 font-medium tracking-widest uppercase hidden sm:block">Pour ma foi et pour ma religion</span>
-                </div>
+                <Logo className="h-12" />
               </Link>
             </div>
             
             {/* Desktop Menu */}
-            <div className="hidden lg:flex lg:items-center lg:space-x-1 xl:space-x-2">
+            <div className="hidden lg:flex lg:items-center lg:justify-center flex-1 lg:space-x-1 xl:space-x-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.path}
-                  className={`px-2 py-2 text-sm uppercase tracking-wider font-medium transition-all duration-300 ${isActive(link.path)} ${link.name === 'Discussion IA' ? 'text-brand-400 border border-brand-500/30 rounded-full px-4 hover:bg-brand-900/20' : ''} ${link.name === 'Le Coran' ? 'text-gold-500' : ''}`}
+                  className={`px-2 py-2 text-[11px] xl:text-xs uppercase tracking-wider font-bold transition-all duration-300 ${isActive(link.path)} ${link.name === 'Discussion IA' ? 'text-brand-400 border border-brand-500/30 rounded-full px-4 hover:bg-brand-900/20' : ''} ${link.name === 'Le Coran' ? 'text-gold-500' : ''}`}
                 >
                   {link.name === 'Discussion IA' ? (
                       <span className="flex items-center gap-2">
@@ -82,18 +73,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   ) : link.name}
                 </Link>
               ))}
+            </div>
 
+            {/* Right Actions */}
+            <div className="hidden lg:flex lg:items-center lg:gap-2">
               {/* BOUTON SPECIAL CONVERSION */}
               <Link
                 to="/shahada"
-                className="ml-2 px-3 py-2 bg-gradient-to-r from-gold-600 to-yellow-600 text-black text-xs font-bold uppercase tracking-wider rounded-full shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:shadow-[0_0_25px_rgba(212,175,55,0.6)] hover:scale-105 transition-all flex items-center gap-2"
+                className="px-3 py-2 bg-gradient-to-r from-gold-600 to-yellow-600 text-black text-[10px] font-bold uppercase tracking-wider rounded-full shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:shadow-[0_0_25px_rgba(212,175,55,0.6)] hover:scale-105 transition-all flex items-center gap-2"
               >
                  <span>☝️</span> Convertir
               </Link>
 
               <button 
                 onClick={() => setShowDonate(true)}
-                className="ml-2 px-3 py-2 border border-brand-500 rounded-full text-xs font-bold text-brand-500 hover:bg-brand-600 hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(234,88,12,0.2)] hover:shadow-[0_0_20px_rgba(234,88,12,0.6)] cursor-pointer"
+                className="px-3 py-2 border border-brand-500 rounded-full text-[10px] font-bold text-brand-500 hover:bg-brand-600 hover:text-white transition-all duration-300 shadow-[0_0_10px_rgba(234,88,12,0.2)] hover:shadow-[0_0_20px_rgba(234,88,12,0.6)] cursor-pointer"
               >
                 Faire un Don
               </button>
@@ -159,8 +153,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-grow bg-black relative z-10 pb-40">
-        {children}
+      <main className="flex-grow bg-black relative z-10 pb-40 flex flex-col items-center w-full overflow-x-hidden">
+        <div className="w-full max-w-7xl mx-auto">
+          {children}
+        </div>
       </main>
 
       {/* Footer Professional */}
@@ -174,11 +170,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {/* Col 1: Brand & Identity */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3">
-                        <img src="/logo.png" alt="DDR" className="h-12 w-auto" />
-                        <div>
-                            <span className="block text-2xl font-bold text-white tracking-tight">La DDR</span>
-                            <span className="text-[10px] text-gray-500 uppercase tracking-widest">Depuis 2015</span>
-                        </div>
+                        <Logo className="h-12" />
                     </div>
                     <p className="text-gray-400 text-sm leading-relaxed">
                         L'association de référence pour le dialogue interreligieux en Côte d'Ivoire. Nous prônons la paix par le savoir et la fraternité par la vérité.

@@ -175,7 +175,10 @@ export class LiveClient {
     private source: MediaStreamAudioSourceNode | null = null;
     private currentSession: any = null;
     
-    constructor(private onMessage: (text: string) => void) {}
+    constructor(
+        private onMessage: (text: string) => void,
+        private onTranscript?: (text: string) => void
+    ) {}
   
     async connect() {
       const ai = getAI();
@@ -187,7 +190,7 @@ export class LiveClient {
 
       // Connect to Gemini Live
       this.sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         callbacks: {
             onopen: async () => {
                 console.log("DDR Compagnon connecté.");
@@ -205,6 +208,14 @@ export class LiveClient {
                 if (text) {
                      this.onMessage(text);
                 }
+
+                // Handle user transcription
+                if (message.serverContent?.inputAudioTranscription) {
+                    const transcript = message.serverContent.inputAudioTranscription.text;
+                    if (transcript && this.onTranscript) {
+                        this.onTranscript(transcript);
+                    }
+                }
             },
             onclose: () => console.log("Session fermée"),
             onerror: (err) => console.error("Erreur Session:", err)
@@ -212,6 +223,7 @@ export class LiveClient {
         config: {
             responseModalities: [Modality.AUDIO],
             systemInstruction: SYSTEM_INSTRUCTION,
+            inputAudioTranscription: {},
             speechConfig: {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } }
             }
@@ -310,6 +322,13 @@ export class LiveClient {
     }
 
     disconnect() {
+        if (this.currentSession) {
+            try {
+                this.currentSession.close();
+            } catch (e) {
+                console.error("Error closing session:", e);
+            }
+        }
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
         }

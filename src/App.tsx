@@ -13,7 +13,8 @@ import ChatPage from './pages/Chat';
 import Shahada from './pages/Shahada';
 import LearningCenter from './pages/LearningCenter';
 import Tools from './pages/Tools';
-import Khatma from './pages/Khatma'; // Import
+import Khatma from './pages/Khatma';
+import Donations from './pages/Donations';
 import Dashboard from './pages/Admin/Dashboard';
 import BackendGuide from './pages/Admin/BackendGuide';
 import LiveAssistant from './components/LiveAssistant';
@@ -148,6 +149,7 @@ const AppContent = () => {
                         <Route path="/learning" element={<LearningCenter />} />
                         <Route path="/tools" element={<Tools />} />
                         <Route path="/khatma" element={<Khatma />} />
+                        <Route path="/donations" element={<Donations />} />
                         <Route path="/news" element={<News />} />
                         <Route path="/news/:id" element={<NewsDetail />} />
                         <Route path="/debates" element={<Debates />} />
